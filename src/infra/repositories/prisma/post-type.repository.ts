@@ -73,6 +73,14 @@ export class PostTypeRepository implements IPostTypeRepository {
 		}
 	}
 
+	async delete(postType: PostType): Promise<void> {
+		try {
+			await prisma.postType.delete({ where: { id: postType.id } });
+		} catch (err: unknown) {
+			prismaErrorManager("post@post-type", err);
+		}
+	}
+
 	async getHighlights(): Promise<IUnmountedPostType[]> {
 		const highlightedPostTypes = await prisma.postType.findMany({
 			where: { isHighlighted: true },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BuildPostTypeService } from "./build-post-type.service";
+import { BuildPostType } from "./build-post-type.service";
 import { PostType } from "../post-type";
 import { InvalidDomainDataException } from "@caffeine/errors/domain";
 import { slugify, generateUUID } from "@caffeine/models/helpers";
@@ -18,7 +18,7 @@ describe("BuildPostTypeService", () => {
 	};
 
 	it("should build a PostType from valid unmounted data", () => {
-		const postType = BuildPostTypeService.run(validUnmountedPostType);
+		const postType = BuildPostType.run(validUnmountedPostType);
 
 		expect(postType).toBeInstanceOf(PostType);
 		expect(postType.name).toBe(validUnmountedPostType.name);
@@ -29,7 +29,7 @@ describe("BuildPostTypeService", () => {
 	it("should throw InvalidDomainDataException if validation fails", () => {
 		const invalidData = { ...validUnmountedPostType, id: undefined };
 
-		expect(() => BuildPostTypeService.run(invalidData as never)).toThrow(
+		expect(() => BuildPostType.run(invalidData as never)).toThrow(
 			InvalidDomainDataException,
 		);
 	});

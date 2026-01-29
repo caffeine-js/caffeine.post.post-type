@@ -88,6 +88,10 @@ export class PostTypeRepository implements IPostTypeRepository {
 		return postTypeHighlights;
 	}
 
+	delete(postType: PostType): Promise<void> {
+		return this.repository.delete(postType);
+	}
+
 	async length(): Promise<number> {
 		const storedPostTypeAmount = await redis.get(`post@post-type:count`);
 

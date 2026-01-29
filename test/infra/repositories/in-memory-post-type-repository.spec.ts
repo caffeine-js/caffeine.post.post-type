@@ -131,4 +131,13 @@ describe("InMemoryPostTypeRepository", () => {
 		const length = await sut.length();
 		expect(length).toBe(2);
 	});
+
+	it("should be able to delete a post type", async () => {
+		const postType = createPostType();
+		await sut.create(postType);
+		await sut.delete(postType);
+		const found = await sut.findById(postType.id);
+		expect(found).toBeNull();
+		expect(sut.items).toHaveLength(0);
+	});
 });

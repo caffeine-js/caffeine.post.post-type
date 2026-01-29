@@ -4,8 +4,9 @@ import type { EntityDTO } from "@caffeine/models/dtos";
 import { BuildPostTypeDTO } from "./dtos/build-post-type.dto";
 import { InvalidDomainDataException } from "@caffeine/errors/domain";
 import { makeEntityFactory } from "@caffeine/models/factories";
+import type { IUnmountedPostType } from "./types/unmounted-post-type.interface";
 
-export class PostType extends Entity implements IPostType {
+export class PostType extends Entity<IUnmountedPostType> implements IPostType {
 	public name: string;
 	public slug: string;
 	public readonly schema: Schema;
@@ -45,5 +46,12 @@ export class PostType extends Entity implements IPostType {
 			},
 			entityProps,
 		);
+	}
+
+	public override unpack(): IUnmountedPostType {
+		const { unpack: _, schema: _schema, ...content } = this;
+		const schema = _schema.toString();
+
+		return { ...content, schema };
 	}
 }
