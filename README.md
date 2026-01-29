@@ -20,15 +20,17 @@ This project was created using `bun init` in bun v1.3.7. [Bun](https://bun.com) 
 - [x] [ ] [POST]* /post-type
 - Criar um novo post-type
 
-- [ ] [ ] [GET] /post-type/:slug
+- [x] [ ] [GET] /post-type/:slug
 - Consulta um determinado post-type
 
-- [ ] [ ] [GET] /post-type
+- [x] [ ] [GET] /post-type?page=n
 - Carrega Todos os PostType
 
-- [ ] [ ] [GET] /post-type/highlights
+- [x] [ ] [GET] /post-type/number-of-pages
 
-- [ ] [ ] [PATCH]* /post-type/:slug
+- [x] [ ] [GET] /post-type/highlights
 
-- [ ] [ ] [DELETE]* /post-type/:slug
+- [x] [ ] [PATCH]* /post-type/:slug
+
+- [x] [ ] [DELETE]* /post-type/:slug
 

@@ -52,6 +52,7 @@
     "@caffeine/models": "link:@caffeine/models",
     "@caffeine/errors": "link:@caffeine/errors",
     "@caffeine/prisma-drive": "link:@caffeine/prisma-drive",
+    "@caffeine/constants": "link:@caffeine/constants",
     "@caffeine/redis-drive": "link:@caffeine/redis-drive"
   }
 }

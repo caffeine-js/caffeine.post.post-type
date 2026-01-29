@@ -1,8 +1,9 @@
 import type { PostType } from "@/domain/post-type";
 import type { IPostTypeRepository } from "@/domain/types/post-type-repository.interface";
 import type { IUnmountedPostType } from "@/domain/types/unmounted-post-type.interface";
+import { MAX_ITEMS_PER_QUERY } from "@caffeine/constants";
 import { prismaErrorManager, prisma } from "@caffeine/prisma-drive";
-import { MAX_ITEMS_PER_QUERY } from "@caffeine/prisma-drive/constants";
+
 import {
 	parseIsoDateTimeToPrismaDateTime,
 	parsePrismaDateTimeToISOString,

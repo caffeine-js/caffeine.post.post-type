@@ -5,6 +5,7 @@
     "": {
       "name": "@caffeine/post/post-type",
       "dependencies": {
+        "@caffeine/constants": "link:@caffeine/constants",
         "@caffeine/errors": "link:@caffeine/errors",
         "@caffeine/models": "link:@caffeine/models",
         "@caffeine/prisma-drive": "link:@caffeine/prisma-drive",
@@ -33,6 +34,8 @@
     "@babel/types": ["@babel/types@7.28.6", "", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-0ZrskXVEHSWIqZM/sQZ4EV3jZJXRkio/WCxaqKZP1g//CEWEPSfeZFcms4XeKBCHU0ZKnIkdJeU/kF+eRp5lBg=="],
 
     "@bcoe/v8-coverage": ["@bcoe/v8-coverage@1.0.2", "", {}, "sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA=="],
+
+    "@caffeine/constants": ["@caffeine/constants@link:@caffeine/constants", {}],
 
     "@caffeine/errors": ["@caffeine/errors@link:@caffeine/errors", {}],
 

@@ -140,4 +140,11 @@ describe("InMemoryPostTypeRepository", () => {
 		expect(found).toBeNull();
 		expect(sut.items).toHaveLength(0);
 	});
+
+	it("should gracefully handle deleting non-existent post type", async () => {
+		const postType = createPostType();
+		// Not added to repo
+		await sut.delete(postType);
+		expect(sut.items).toHaveLength(0);
+	});
 });
