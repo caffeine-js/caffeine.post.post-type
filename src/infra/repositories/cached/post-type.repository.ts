@@ -8,8 +8,10 @@ export class PostTypeRepository implements IPostTypeRepository {
 
 	constructor(private readonly repository: IPostTypeRepository) {}
 
-	create(postType: PostType): Promise<void> {
-		return this.repository.create(postType);
+	async create(postType: PostType): Promise<void> {
+		await this.repository.create(postType);
+
+		await this.invalidateListCache();
 	}
 
 	async findById(id: string): Promise<IUnmountedPostType | null> {
@@ -132,9 +134,16 @@ export class PostTypeRepository implements IPostTypeRepository {
 		await redis.del(`post@post-type::${postType.slug}`);
 
 		await this.repository.delete(postType);
+		await this.invalidateListCache();
 	}
 
 	length(): Promise<number> {
 		return this.repository.length();
+	}
+
+	private async invalidateListCache(): Promise<void> {
+		const keys = await redis.keys("post@post-type:page:*");
+
+		if (keys.length > 0) await redis.del(...keys);
 	}
 }
