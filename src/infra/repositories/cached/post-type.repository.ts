@@ -66,7 +66,7 @@ export class PostTypeRepository implements IPostTypeRepository {
 	}
 
 	update(postType: PostType): Promise<void> {
-		return this.update(postType);
+		return this.repository.update(postType);
 	}
 
 	async getHighlights(): Promise<IUnmountedPostType[]> {
@@ -92,20 +92,7 @@ export class PostTypeRepository implements IPostTypeRepository {
 		return this.repository.delete(postType);
 	}
 
-	async length(): Promise<number> {
-		const storedPostTypeAmount = await redis.get(`post@post-type:count`);
-
-		if (storedPostTypeAmount) return parseInt(storedPostTypeAmount);
-
-		const postTypeAmount = await this.repository.length();
-
-		await redis.set(
-			`post@post-type:count`,
-			`${postTypeAmount}`,
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
-
-		return postTypeAmount;
+	length(): Promise<number> {
+		return this.repository.length();
 	}
 }
