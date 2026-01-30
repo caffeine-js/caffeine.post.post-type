@@ -11,8 +11,6 @@
         "@caffeine/models": "link:@caffeine/models",
         "@caffeine/prisma-drive": "link:@caffeine/prisma-drive",
         "@caffeine/redis-drive": "link:@caffeine/redis-drive",
-        "@elysiajs/openapi": "^1.4.14",
-        "elysia": "^1.4.22",
       },
       "devDependencies": {
         "@faker-js/faker": "^10.2.0",
@@ -23,6 +21,7 @@
         "vitest": "^4.0.18",
       },
       "peerDependencies": {
+        "elysia": "^1.4.22",
         "typescript": "^5",
       },
     },
@@ -51,8 +50,6 @@
     "@caffeine/prisma-drive": ["@caffeine/prisma-drive@link:@caffeine/prisma-drive", {}],
 
     "@caffeine/redis-drive": ["@caffeine/redis-drive@link:@caffeine/redis-drive", {}],
-
-    "@elysiajs/openapi": ["@elysiajs/openapi@1.4.14", "", { "peerDependencies": { "elysia": ">= 1.4.0" } }, "sha512-kWmJWdvP8/LwHwAJXSpz6xFfYUoyUyEPRimEYABuDU1rOnS27Da1u9T2jyU7frOopxKWV/wDfDxMP8z2xdCPJw=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.27.2", "", { "os": "aix", "cpu": "ppc64" }, "sha512-GZMB+a0mOMZs4MpDbj8RJp4cw+w1WV5NYD6xzgvzUJ5Ek2jerwfO2eADyI6ExDSUED+1X8aMbegahsJi+8mgpw=="],
 
