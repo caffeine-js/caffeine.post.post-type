@@ -49,12 +49,13 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@caffeine/auth": "link:@caffeine/auth",
     "@caffeine/constants": "link:@caffeine/constants",
     "@caffeine/errors": "link:@caffeine/errors",
     "@caffeine/models": "link:@caffeine/models",
     "@caffeine/prisma-drive": "link:@caffeine/prisma-drive",
     "@caffeine/redis-drive": "link:@caffeine/redis-drive",
-    "@caffeine/auth": "link:@caffeine/auth",
+    "@elysiajs/openapi": "^1.4.14",
     "elysia": "^1.4.22"
   }
 }
