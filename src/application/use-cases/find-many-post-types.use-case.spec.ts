@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { FindManyPostTypesUseCase } from "./find-many-post-types.use-case";
-import { InMemoryPostTypeRepository } from "../../../test/infra/repositories/in-memory-post-type-repository";
+import { PostTypeRepository } from "@/infra/repositories/test/post-type-repository";
 import { PostType } from "@/domain/post-type";
 import { PostTypeSchemaFactory } from "@/domain/factories/post-type-schema.factory";
 import { t } from "@caffeine/models";
 
 describe("FindManyPostTypesUseCase", () => {
 	let useCase: FindManyPostTypesUseCase;
-	let repository: InMemoryPostTypeRepository;
+	let repository: PostTypeRepository;
 
 	beforeEach(() => {
-		repository = new InMemoryPostTypeRepository();
+		repository = new PostTypeRepository();
 		useCase = new FindManyPostTypesUseCase(repository);
 	});
 
@@ -30,11 +30,11 @@ describe("FindManyPostTypesUseCase", () => {
 		// Page 1 should have 10 items
 		const page1 = await useCase.run(1);
 		expect(page1).toHaveLength(10);
-		expect(page1[0].slug).toBe("pt-1");
+		expect(page1[0]?.slug).toBe("pt-1");
 
 		// Page 2 should have 5 items
 		const page2 = await useCase.run(2);
 		expect(page2).toHaveLength(5);
-		expect(page2[0].slug).toBe("pt-11");
+		expect(page2[0]?.slug).toBe("pt-11");
 	});
 });

@@ -33,7 +33,8 @@
   "type": "module",
   "scripts": {
     "build": "tsup 'src/**/index.ts' --format cjs,esm --dts --tsconfig tsconfig.build.json --clean",
-    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "setup": "bun run build && bun link"
   },

@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { InMemoryPostTypeRepository } from "./in-memory-post-type-repository";
+import { PostTypeRepository } from "./post-type-repository";
 import { PostType } from "@/domain/post-type";
 import { generateUUID, slugify } from "@caffeine/models/helpers";
 import { Schema, t } from "@caffeine/models";
 
-describe("InMemoryPostTypeRepository", () => {
-	let sut: InMemoryPostTypeRepository;
+describe("PostTypeRepository", () => {
+	let sut: PostTypeRepository;
 
 	beforeEach(() => {
-		sut = new InMemoryPostTypeRepository();
+		sut = new PostTypeRepository();
 	});
 
 	const createPostType = (name = "Test", isHighlighted = false) => {

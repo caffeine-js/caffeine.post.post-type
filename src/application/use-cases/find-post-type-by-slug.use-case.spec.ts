@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { FindPostTypeBySlugUseCase } from "./find-post-type-by-slug.use-case";
-import { InMemoryPostTypeRepository } from "../../../test/infra/repositories/in-memory-post-type-repository";
+import { PostTypeRepository } from "@/infra/repositories/test/post-type-repository";
 import { ResourceNotFoundException } from "@caffeine/errors/application";
 import { PostType } from "@/domain/post-type";
 import { PostTypeSchemaFactory } from "@/domain/factories/post-type-schema.factory";
@@ -8,10 +8,10 @@ import { t } from "@caffeine/models";
 
 describe("FindPostTypeBySlugUseCase", () => {
 	let useCase: FindPostTypeBySlugUseCase;
-	let repository: InMemoryPostTypeRepository;
+	let repository: PostTypeRepository;
 
 	beforeEach(() => {
-		repository = new InMemoryPostTypeRepository();
+		repository = new PostTypeRepository();
 		useCase = new FindPostTypeBySlugUseCase(repository);
 	});
 

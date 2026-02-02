@@ -2,7 +2,7 @@ import type { PostType } from "@/domain/post-type";
 import type { IPostTypeRepository } from "@/domain/types/post-type-repository.interface";
 import type { IUnmountedPostType } from "@/domain/types/unmounted-post-type.interface";
 
-export class InMemoryPostTypeRepository implements IPostTypeRepository {
+export class PostTypeRepository implements IPostTypeRepository {
 	public items: PostType[] = [];
 
 	async create(postType: PostType): Promise<void> {

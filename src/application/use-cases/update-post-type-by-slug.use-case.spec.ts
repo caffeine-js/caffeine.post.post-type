@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { UpdatePostTypeBySlugUseCase } from "./update-post-type-by-slug.use-case";
-import { InMemoryPostTypeRepository } from "../../../test/infra/repositories/in-memory-post-type-repository";
+import { PostTypeRepository } from "@/infra/repositories/test/post-type-repository";
 import {
 	ResourceNotFoundException,
 	ResourceAlreadyExistsException,
@@ -11,11 +11,11 @@ import { t } from "@caffeine/models";
 
 describe("UpdatePostTypeBySlugUseCase", () => {
 	let useCase: UpdatePostTypeBySlugUseCase;
-	let repository: InMemoryPostTypeRepository;
+	let repository: PostTypeRepository;
 	let schemaStr: string;
 
 	beforeEach(() => {
-		repository = new InMemoryPostTypeRepository();
+		repository = new PostTypeRepository();
 		useCase = new UpdatePostTypeBySlugUseCase(repository);
 		schemaStr = JSON.stringify(t.Object({ content: t.String() }));
 	});

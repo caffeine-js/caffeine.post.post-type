@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { CreatePostTypeUseCase } from "./create-post-type.use-case";
-import { InMemoryPostTypeRepository } from "../../../test/infra/repositories/in-memory-post-type-repository";
+import { PostTypeRepository } from "@/infra/repositories/test/post-type-repository";
 import { ResourceAlreadyExistsException } from "@caffeine/errors/application";
 import { t } from "@caffeine/models";
 import { PostType } from "@/domain/post-type";
@@ -9,10 +9,10 @@ import { slugify } from "@caffeine/models/helpers";
 
 describe("CreatePostTypeUseCase", () => {
 	let useCase: CreatePostTypeUseCase;
-	let repository: InMemoryPostTypeRepository;
+	let repository: PostTypeRepository;
 
 	beforeEach(() => {
-		repository = new InMemoryPostTypeRepository();
+		repository = new PostTypeRepository();
 		useCase = new CreatePostTypeUseCase(repository);
 	});
 
