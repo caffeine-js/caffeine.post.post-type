@@ -1,13 +1,15 @@
 import type { PostType } from "@/domain/post-type";
 import type { IPostTypeRepository } from "@/domain/types/post-type-repository.interface";
 import type { IUnmountedPostType } from "@/domain/types/unmounted-post-type.interface";
-import { MAX_ITEMS_PER_QUERY } from "@caffeine/constants";
-import { prismaErrorManager, prisma } from "@caffeine/prisma-drive";
-
+import {
+	prisma,
+	prismaErrorManager,
+} from "@caffeine-packages/post.db.prisma-drive";
 import {
 	parseIsoDateTimeToPrismaDateTime,
 	parsePrismaDateTimeToISOString,
-} from "@caffeine/prisma-drive/helpers";
+} from "@caffeine-packages/post.db.prisma-drive/helpers";
+import { MAX_ITEMS_PER_QUERY } from "@caffeine/constants";
 
 export class PostTypeRepository implements IPostTypeRepository {
 	async create(postType: PostType): Promise<void> {

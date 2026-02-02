@@ -5,11 +5,11 @@
     "": {
       "name": "@caffeine-packages/post.post-type",
       "dependencies": {
+        "@caffeine-packages/post.db.prisma-drive": "link:@caffeine-packages/post.db.prisma-drive",
         "@caffeine/auth": "link:@caffeine/auth",
         "@caffeine/constants": "link:@caffeine/constants",
         "@caffeine/errors": "link:@caffeine/errors",
         "@caffeine/models": "link:@caffeine/models",
-        "@caffeine/prisma-drive": "link:@caffeine/prisma-drive",
         "@caffeine/redis-drive": "link:@caffeine/redis-drive",
       },
       "devDependencies": {
@@ -39,6 +39,8 @@
 
     "@borewit/text-codec": ["@borewit/text-codec@0.2.1", "", {}, "sha512-k7vvKPbf7J2fZ5klGRD9AeKfUvojuZIQ3BT5u7Jfv+puwXkUBUT5PVyMDfJZpy30CBDXGMgw7fguK/lpOMBvgw=="],
 
+    "@caffeine-packages/post.db.prisma-drive": ["@caffeine-packages/post.db.prisma-drive@link:@caffeine-packages/post.db.prisma-drive", {}],
+
     "@caffeine/auth": ["@caffeine/auth@link:@caffeine/auth", {}],
 
     "@caffeine/constants": ["@caffeine/constants@link:@caffeine/constants", {}],
@@ -46,8 +48,6 @@
     "@caffeine/errors": ["@caffeine/errors@link:@caffeine/errors", {}],
 
     "@caffeine/models": ["@caffeine/models@link:@caffeine/models", {}],
-
-    "@caffeine/prisma-drive": ["@caffeine/prisma-drive@link:@caffeine/prisma-drive", {}],
 
     "@caffeine/redis-drive": ["@caffeine/redis-drive@link:@caffeine/redis-drive", {}],
 
