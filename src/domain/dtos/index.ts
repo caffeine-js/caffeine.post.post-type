@@ -1,1 +1,2 @@
-export { UnmountedPostTypeDTO } from "./unmounted-post-type.dto";
+export { UnpackedPostTypeDTO } from "./unpacked-post-type.dto";
+export { SchemaDTO } from "./schema.dto";

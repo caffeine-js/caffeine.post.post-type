@@ -1,57 +1,87 @@
-import { Entity, Schema } from "@caffeine/models";
 import type { IPostType } from "./types/post-type.interface";
-import type { EntityDTO } from "@caffeine/models/dtos";
-import { BuildPostTypeDTO } from "./dtos/build-post-type.dto";
-import { InvalidDomainDataException } from "@caffeine/errors/domain";
-import { makeEntityFactory } from "@caffeine/models/factories";
-import type { IUnmountedPostType } from "./types/unmounted-post-type.interface";
+import type { Schema } from "@caffeine/schema";
+import { Entity } from "@caffeine/entity";
+import {
+	EntityContext,
+	EntitySchema,
+	EntitySource,
+} from "@caffeine/entity/symbols";
+import { UnpackedPostTypeSchema } from "./schemas";
+import { AutoUpdate } from "@caffeine/entity/decorators";
+import type { SchemaDTO } from "./dtos";
+import type { IMakePostType } from "./types";
+import { BooleanVO, DefinedStringVO, SlugVO } from "@caffeine/value-objects";
+import { SchemaVO } from "./value-objects";
+import type { EntityDTO } from "@caffeine/entity/dtos";
+import { makeEntity } from "@caffeine/entity/factories";
 
-export class PostType extends Entity<IUnmountedPostType> implements IPostType {
-	public name: string;
-	public slug: string;
-	public readonly schema: Schema;
-	public isHighlighted: boolean;
+export class PostType
+	extends Entity<UnpackedPostTypeSchema>
+	implements IPostType
+{
+	public override readonly [EntitySource]: string = "post@post-type";
+	public static readonly [EntitySource]: string = "post@post-type";
+	public override readonly [EntitySchema]: Schema<UnpackedPostTypeSchema> =
+		UnpackedPostTypeSchema;
+
+	private _name: DefinedStringVO;
+	private _slug: SlugVO;
+	private _schema: SchemaVO;
+	private _isHighlighted: BooleanVO;
 
 	private constructor(
-		{ name, isHighlighted, schema, slug }: IPostType,
-		entityData: EntityDTO,
+		{ isHighlighted, name, schema, slug }: IMakePostType,
+		entityProps: EntityDTO,
 	) {
-		super(entityData);
+		super(entityProps);
 
-		this.name = name;
-		this.schema = schema;
-		this.isHighlighted = isHighlighted;
-		this.slug = slug;
+		this._name = DefinedStringVO.make(name, this[EntityContext]("name"));
+		this._slug = SlugVO.make(slug ?? name, this[EntityContext]("slug"));
+		this._schema = SchemaVO.make(schema, this[EntityContext]("schema"));
+		this._isHighlighted =
+			isHighlighted !== undefined
+				? BooleanVO.make(isHighlighted, this[EntityContext]("isHighlighted"))
+				: BooleanVO.falsy(this[EntityContext]("isHighlighted"));
 	}
 
 	public static make(
-		initialProperties: BuildPostTypeDTO,
-		schema: Schema,
+		initialProps: IMakePostType,
 		entityProps?: EntityDTO,
-	): PostType {
-		if (!Schema.make(BuildPostTypeDTO).match(initialProperties))
-			throw new InvalidDomainDataException("post@post-type");
+	): IPostType {
+		return new PostType(initialProps, entityProps ?? makeEntity());
+	}
 
-		if (!(schema instanceof Schema))
-			throw new InvalidDomainDataException("post@post-type:schema");
+	@AutoUpdate
+	rename(value: string): void {
+		this._name = DefinedStringVO.make(value, this[EntityContext]("name"));
+	}
 
-		entityProps = entityProps ?? makeEntityFactory();
+	@AutoUpdate
+	reslug(value: string): void {
+		this._slug = SlugVO.make(value, this[EntityContext]("slug"));
+	}
 
-		return new PostType(
-			{
-				isHighlighted: initialProperties.isHighlighted ?? false,
-				name: initialProperties.name,
-				schema,
-				slug: initialProperties.slug,
-			},
-			entityProps,
+	@AutoUpdate
+	setHighlightTo(value: boolean): void {
+		this._isHighlighted = BooleanVO.make(
+			value,
+			this[EntityContext]("isHighlighted"),
 		);
 	}
 
-	public override unpack(): IUnmountedPostType {
-		const { unpack: _, schema: _schema, ...content } = this;
-		const schema = _schema.toString();
+	get name(): string {
+		return this._name.value;
+	}
 
-		return { ...content, schema };
+	get slug(): string {
+		return this._slug.value;
+	}
+
+	get schema(): Schema<typeof SchemaDTO> {
+		return this._schema.value;
+	}
+
+	get isHighlighted(): boolean {
+		return this._isHighlighted.value;
 	}
 }

@@ -1,38 +1,96 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { PostType } from "./post-type";
-import { Schema, t } from "@caffeine/models";
-import { InvalidDomainDataException } from "@caffeine/errors/domain";
+import { makeEntity } from "@caffeine/entity/factories";
+import { t } from "@caffeine/models";
+import { Schema } from "@caffeine/schema";
 
-describe("PostType", () => {
-	const validSchema = Schema.make(t.Object({ content: t.String() }));
-	const validProps = {
-		name: "Test Post Type",
-		slug: "test-post-type",
-		isHighlighted: false,
-	};
+describe("PostType Entity", () => {
+	const validSchemaString = Schema.make(
+		t.Object({ content: t.String({ minLength: 1 }) }),
+	).toString();
 
-	it("should create a PostType with valid data", () => {
-		const postType = PostType.make(validProps, validSchema);
-		expect(postType).toBeInstanceOf(PostType);
-		expect(postType.name).toBe(validProps.name);
+	describe("make()", () => {
+		it("should create a valid instance with all attributes", () => {
+			const postType = PostType.make({
+				name: "Article",
+				schema: validSchemaString,
+				isHighlighted: true,
+			});
+
+			expect(postType).toBeInstanceOf(PostType);
+			expect(postType.name).toBe("Article");
+			expect(postType.slug).toBe("article");
+			expect(postType.schema).toBeInstanceOf(Schema);
+			expect(postType.schema.toString()).toBe(validSchemaString);
+			expect(postType.isHighlighted).toBe(true);
+		});
+
+		it("should fall back to name for slug if slug is not provided", () => {
+			const postType = PostType.make({
+				name: "news-update",
+				schema: validSchemaString,
+				isHighlighted: false,
+			});
+
+			expect(postType.slug).toBe("news-update");
+		});
+
+		it("should accept custom entity properties", () => {
+			const entityProps = makeEntity();
+
+			const postType = PostType.make(
+				{
+					name: "page",
+					schema: validSchemaString,
+				},
+				entityProps,
+			);
+
+			expect(postType.id).toBe(entityProps.id);
+			expect(postType.isHighlighted).toBe(false);
+		});
 	});
 
-	it("should throw InvalidDomainDataException when properties are invalid", () => {
-		const invalidProps = {
-			...validProps,
-			name: undefined, // Invalid: name is required
-		};
+	describe("mutations", () => {
+		it("should rename the post type", () => {
+			const postType = PostType.make({
+				name: "old-name",
+				slug: "slug",
+				schema: validSchemaString,
+				isHighlighted: false,
+			});
 
-		expect(() => PostType.make(invalidProps as never, validSchema)).toThrow(
-			new InvalidDomainDataException("post@post-type"),
-		);
-	});
+			postType.rename("new-name");
+			expect(postType.name).toBe("new-name");
+		});
 
-	it("should throw InvalidDomainDataException when schema is not an instance of Schema", () => {
-		const invalidSchema = {} as Schema; // Not a Schema instance
+		it("should update the slug", () => {
+			const postType = PostType.make({
+				name: "name",
+				slug: "old-slug",
+				schema: validSchemaString,
+				isHighlighted: false,
+			});
 
-		expect(() => PostType.make(validProps, invalidSchema)).toThrow(
-			new InvalidDomainDataException("post@post-type:schema"),
-		);
+			postType.reslug("new-slug");
+			expect(postType.slug).toBe("new-slug");
+		});
+
+		it("should update the highlight status", () => {
+			const postType = PostType.make({
+				name: "name",
+				slug: "slug",
+				schema: validSchemaString,
+				isHighlighted: false,
+			});
+
+			expect(postType.isHighlighted).toBe(false);
+
+			postType.setHighlightTo(true);
+			expect(postType.isHighlighted).toBe(true);
+
+			postType.setHighlightTo(false);
+			expect(postType.isHighlighted).toBe(false);
+		});
 	});
 });

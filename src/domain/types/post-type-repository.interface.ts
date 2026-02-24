@@ -1,13 +1,4 @@
-import type { PostType } from "../post-type";
-import type { IUnmountedPostType } from "./unmounted-post-type.interface";
+import type { IPostTypeReader } from "./post-type-reader.interface";
+import type { IPostTypeWriter } from "./post-type-writer.interface";
 
-export interface IPostTypeRepository {
-	create(postType: PostType): Promise<void>;
-	findById(id: string): Promise<IUnmountedPostType | null>;
-	findBySlug(slug: string): Promise<IUnmountedPostType | null>;
-	findMany(page: number): Promise<IUnmountedPostType[]>;
-	update(postType: PostType): Promise<void>;
-	getHighlights(): Promise<IUnmountedPostType[]>;
-	delete(postType: PostType): Promise<void>;
-	length(): Promise<number>;
-}
+export interface IPostTypeRepository extends IPostTypeWriter, IPostTypeReader {}
