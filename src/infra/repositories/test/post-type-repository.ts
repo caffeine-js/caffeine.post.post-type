@@ -1,55 +1,66 @@
-import type { PostType } from "@/domain/post-type";
-import type { IPostTypeRepository } from "@/domain/types/post-type-repository.interface";
-import type { IUnmountedPostType } from "@/domain/types/unmounted-post-type.interface";
+import type { IPostType, IPostTypeRepository } from "@/domain/types";
+import { MAX_ITEMS_PER_QUERY } from "@caffeine/constants";
 
 export class PostTypeRepository implements IPostTypeRepository {
-	public items: PostType[] = [];
+	items: IPostType[] = [];
 
-	async create(postType: PostType): Promise<void> {
+	async create(postType: IPostType): Promise<void> {
 		this.items.push(postType);
 	}
 
-	async findById(id: string): Promise<IUnmountedPostType | null> {
-		const item = this.items.find((i) => i.id === id);
-		if (!item) return null;
-		return item.unpack();
+	async update(postType: IPostType): Promise<void> {
+		const index = this.items.findIndex((item) => item.id === postType.id);
+
+		if (index !== -1) {
+			this.items[index] = postType;
+		}
 	}
 
-	async findManyById(...ids: string[]): Promise<IUnmountedPostType[]> {
-		return this.items.filter((i) => ids.includes(i.id)).map((i) => i.unpack());
-	}
+	async delete(postType: IPostType): Promise<void> {
+		const index = this.items.findIndex((item) => item.id === postType.id);
 
-	async findBySlug(slug: string): Promise<IUnmountedPostType | null> {
-		const item = this.items.find((i) => i.slug === slug);
-		if (!item) return null;
-		return item.unpack();
-	}
-
-	async findMany(page: number): Promise<IUnmountedPostType[]> {
-		const offset = 10;
-		const start = (page - 1) * offset;
-		const end = start + offset;
-		return this.items.slice(start, end).map((i) => i.unpack());
-	}
-
-	async update(postType: PostType): Promise<void> {
-		const index = this.items.findIndex((i) => i.id === postType.id);
-		if (index === -1) return;
-		this.items[index] = postType;
-	}
-
-	async getHighlights(): Promise<IUnmountedPostType[]> {
-		return this.items.filter((i) => i.isHighlighted).map((i) => i.unpack());
-	}
-
-	async delete(postType: PostType): Promise<void> {
-		const index = this.items.findIndex((i) => i.id === postType.id);
 		if (index !== -1) {
 			this.items.splice(index, 1);
 		}
 	}
 
-	async length(): Promise<number> {
+	async findById(id: string): Promise<IPostType | null> {
+		const result = this.items.find((item) => item.id === id);
+
+		return result ?? null;
+	}
+
+	async findBySlug(slug: string): Promise<IPostType | null> {
+		const result = this.items.find((item) => item.slug === slug);
+
+		return result ?? null;
+	}
+
+	async findMany(page: number): Promise<IPostType[]> {
+		const take = MAX_ITEMS_PER_QUERY;
+		const start = (page - 1) * take;
+
+		return this.items.slice(start, start + take);
+	}
+
+	async findManyByIds(ids: string[]): Promise<IPostType[]> {
+		return this.items.filter((item) => ids.includes(item.id));
+	}
+
+	async findHighlights(page: number): Promise<IPostType[]> {
+		const take = MAX_ITEMS_PER_QUERY;
+		const start = (page - 1) * take;
+
+		return this.items
+			.filter((item) => item.isHighlighted)
+			.slice(start, start + take);
+	}
+
+	async count(): Promise<number> {
 		return this.items.length;
+	}
+
+	async countHighlights(): Promise<number> {
+		return this.items.filter((item) => item.isHighlighted).length;
 	}
 }

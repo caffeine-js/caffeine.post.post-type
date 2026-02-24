@@ -1,149 +1,250 @@
-import type { PostType } from "@/domain/post-type";
+import type { IPostType } from "@/domain/types/post-type.interface";
 import type { IPostTypeRepository } from "@/domain/types/post-type-repository.interface";
-import type { IUnmountedPostType } from "@/domain/types/unmounted-post-type.interface";
 import { redis } from "@caffeine/redis-drive";
+import { CachedPostTypeMapper } from "./cached-post-type-mapper";
+import { CACHE_EXPIRATION_TIME } from "@caffeine/constants";
+import { Mapper } from "@caffeine/entity";
+import { PostType } from "@/domain";
+import { EntitySource } from "@caffeine/entity/symbols";
 
 export class PostTypeRepository implements IPostTypeRepository {
-	private postTypeCacheExpirationTime: number = 60 * 60;
+	private cacheExpirationTime: number = CACHE_EXPIRATION_TIME.SAFE;
 
 	constructor(private readonly repository: IPostTypeRepository) {}
 
-	async create(postType: PostType): Promise<void> {
+	async create(postType: IPostType): Promise<void> {
 		await this.repository.create(postType);
-
-		await this.invalidateListCache();
+		await Promise.all([
+			this.cachePostType(postType),
+			this.invalidateListCache(),
+		]);
 	}
 
-	async findById(id: string): Promise<IUnmountedPostType | null> {
-		const storedPostType = await redis.get(`post@post-type::$${id}`);
+	async delete(postType: IPostType): Promise<void> {
+		await this.repository.delete(postType);
+
+		await Promise.all([
+			redis.del(`${PostType[EntitySource]}::$${postType.id}`),
+			redis.del(`${PostType[EntitySource]}::${postType.slug}`),
+			this.invalidateListCache(),
+		]);
+	}
+
+	async findById(id: string): Promise<IPostType | null> {
+		const storedPostType = await redis.get(`${PostType[EntitySource]}::$${id}`);
 
 		if (storedPostType)
-			return storedPostType === null ? null : JSON.parse(storedPostType);
+			return CachedPostTypeMapper.run(
+				`${PostType[EntitySource]}::$${id}`,
+				storedPostType,
+			);
 
 		const targetPostType = await this.repository.findById(id);
 
 		if (!targetPostType) return null;
 
-		await redis.set(
-			`post@post-type::$${id}`,
-			JSON.stringify(targetPostType),
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
-		await redis.set(
-			`post@post-type::${targetPostType?.slug}`,
-			JSON.stringify(targetPostType),
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
+		await this.cachePostType(targetPostType);
 
 		return targetPostType;
 	}
 
-	async findBySlug(slug: string): Promise<IUnmountedPostType | null> {
-		const storedPostType = await redis.get(`post@post-type::${slug}`);
+	async findBySlug(slug: string): Promise<IPostType | null> {
+		const storedId = await redis.get(`${PostType[EntitySource]}::${slug}`);
 
-		if (storedPostType)
-			return storedPostType === null ? null : JSON.parse(storedPostType);
+		if (storedId) {
+			const postType = await this.findById(storedId);
+
+			if (postType && postType.slug === slug) return postType;
+
+			await redis.del(`${PostType[EntitySource]}::${slug}`);
+		}
 
 		const targetPostType = await this.repository.findBySlug(slug);
 
 		if (!targetPostType) return null;
 
-		await redis.set(
-			`post@post-type::${slug}`,
-			JSON.stringify(targetPostType),
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
-		await redis.set(
-			`post@post-type::$${targetPostType?.id}`,
-			JSON.stringify(targetPostType),
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
+		await this.cachePostType(targetPostType);
 
 		return targetPostType;
 	}
 
-	async findMany(page: number): Promise<IUnmountedPostType[]> {
-		const storedPostType = await redis.get(`post@post-type:page::${page}`);
+	async findMany(page: number): Promise<IPostType[]> {
+		const key = `${PostType[EntitySource]}:page::${page}`;
+		const storedIds = await redis.get(key);
 
-		if (storedPostType) return JSON.parse(storedPostType);
+		if (storedIds) {
+			try {
+				const ids: string[] = JSON.parse(storedIds);
+				return await this.findManyByIds(ids);
+			} catch {
+				await redis.del(key);
+			}
+		}
 
-		const targetPostType = await this.repository.findMany(page);
+		const targetPostTypes = await this.repository.findMany(page);
 
-		await redis.set(
-			`post@post-type:page::${page}`,
-			JSON.stringify(targetPostType),
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
+		await Promise.all([
+			...targetPostTypes.map((postType) => this.cachePostType(postType)),
+			redis.set(
+				key,
+				JSON.stringify(targetPostTypes.map((postType) => postType.id)),
+				"EX",
+				this.cacheExpirationTime,
+			),
+		]);
 
-		return targetPostType;
+		return targetPostTypes;
 	}
 
-	async update(postType: PostType): Promise<void> {
-		const _cachedPostType = await redis.get(`post@post-type::$${postType.id}`);
+	async findHighlights(page: number): Promise<IPostType[]> {
+		const key = `${PostType[EntitySource]}:highlights:page::${page}`;
+		const storedIds = await redis.get(key);
+
+		if (storedIds) {
+			try {
+				const ids: string[] = JSON.parse(storedIds);
+				return await this.findManyByIds(ids);
+			} catch {
+				await redis.del(key);
+			}
+		}
+
+		const targetPostTypes = await this.repository.findHighlights(page);
+
+		await Promise.all([
+			...targetPostTypes.map((postType) => this.cachePostType(postType)),
+			redis.set(
+				key,
+				JSON.stringify(targetPostTypes.map((postType) => postType.id)),
+				"EX",
+				this.cacheExpirationTime,
+			),
+		]);
+
+		return targetPostTypes;
+	}
+
+	async findManyByIds(ids: string[]): Promise<IPostType[]> {
+		if (ids.length === 0) return [];
+
+		const keys = ids.map((id) => `${PostType[EntitySource]}::$${id}`);
+		const cachedValues = await redis.mget(...keys);
+
+		const postTypesMap = new Map<string, IPostType>();
+		const missedIds: string[] = [];
+
+		for (let i = 0; i < ids.length; i++) {
+			const id = ids[i];
+			if (!id) continue;
+
+			const cached = cachedValues[i];
+
+			if (cached) {
+				try {
+					const postType = CachedPostTypeMapper.run(
+						`${PostType[EntitySource]}::$${id}`,
+						cached,
+					);
+					postTypesMap.set(id, postType);
+				} catch {
+					missedIds.push(id);
+				}
+			} else {
+				missedIds.push(id);
+			}
+		}
+
+		if (missedIds.length > 0) {
+			const fetchedPostTypes = await this.repository.findManyByIds(missedIds);
+
+			await Promise.all(
+				fetchedPostTypes.filter(Boolean).map(async (pt) => {
+					await this.cachePostType(pt);
+					postTypesMap.set(pt.id, pt);
+				}),
+			);
+		}
+
+		return ids
+			.map((id) => postTypesMap.get(id))
+			.filter((postType): postType is IPostType => postType !== undefined);
+	}
+
+	async update(postType: IPostType): Promise<void> {
+		const _cachedPostType = await redis.get(
+			`${PostType[EntitySource]}::$${postType.id}`,
+		);
 
 		if (_cachedPostType) {
-			const cachedPostType: IUnmountedPostType = JSON.parse(_cachedPostType);
+			const cachedPostType: IPostType = CachedPostTypeMapper.run(
+				`${PostType[EntitySource]}::$${postType.id}`,
+				_cachedPostType,
+			);
 
-			await redis.del(`post@post-type::$${cachedPostType.id}`);
-			await redis.del(`post@post-type::${cachedPostType.slug}`);
+			await Promise.all([
+				redis.del(`${PostType[EntitySource]}::$${cachedPostType.id}`),
+				redis.del(`${PostType[EntitySource]}::${cachedPostType.slug}`),
+			]);
 		}
 
 		await this.repository.update(postType);
 
-		await redis.set(
-			`post@post-type::${postType.slug}`,
-			JSON.stringify(postType.unpack()),
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
-
-		await redis.set(
-			`post@post-type::$${postType.id}`,
-			JSON.stringify(postType.unpack()),
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
+		await Promise.all([
+			this.cachePostType(postType),
+			this.invalidateListCache(),
+		]);
 	}
 
-	async getHighlights(): Promise<IUnmountedPostType[]> {
-		const storedPostTypeHighlights = await redis.get(
-			`post@post-type:highlights`,
-		);
-
-		if (storedPostTypeHighlights) return JSON.parse(storedPostTypeHighlights);
-
-		const postTypeHighlights = await this.repository.getHighlights();
-
-		await redis.set(
-			`post@post-type:highlights`,
-			JSON.stringify(postTypeHighlights),
-			"EX",
-			this.postTypeCacheExpirationTime,
-		);
-
-		return postTypeHighlights;
+	count(): Promise<number> {
+		return this.repository.count();
 	}
 
-	async delete(postType: PostType): Promise<void> {
-		await redis.del(`post@post-type::$${postType.id}`);
-		await redis.del(`post@post-type::${postType.slug}`);
-
-		await this.repository.delete(postType);
-		await this.invalidateListCache();
+	countHighlights(): Promise<number> {
+		return this.repository.countHighlights();
 	}
 
-	length(): Promise<number> {
-		return this.repository.length();
+	private async cachePostType(postType: IPostType): Promise<void> {
+		const unpacked = Mapper.toDTO(postType);
+
+		await Promise.all([
+			redis.set(
+				`${PostType[EntitySource]}::$${postType.id}`,
+				JSON.stringify(unpacked),
+				"EX",
+				this.cacheExpirationTime,
+			),
+			redis.set(
+				`${PostType[EntitySource]}::${postType.slug}`,
+				postType.id,
+				"EX",
+				this.cacheExpirationTime,
+			),
+		]);
 	}
 
 	private async invalidateListCache(): Promise<void> {
-		const keys = await redis.keys("post@post-type:page:*");
+		const patterns = [
+			`${PostType[EntitySource]}:page:*`,
+			`${PostType[EntitySource]}:highlights:page:*`,
+		];
 
-		if (keys.length > 0) await redis.del(...keys);
+		for (const pattern of patterns) {
+			let cursor = "0";
+			do {
+				const [newCursor, keys] = await redis.scan(
+					cursor,
+					"MATCH",
+					pattern,
+					"COUNT",
+					100,
+				);
+
+				cursor = newCursor;
+
+				if (keys.length > 0) {
+					await redis.del(...keys);
+				}
+			} while (cursor !== "0");
+		}
 	}
 }

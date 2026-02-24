@@ -1,150 +1,163 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { PostTypeRepository } from "./post-type-repository";
 import { PostType } from "@/domain/post-type";
-import { generateUUID, slugify } from "@caffeine/models/helpers";
-import { Schema, t } from "@caffeine/models";
+import { MAX_ITEMS_PER_QUERY } from "@caffeine/constants";
+import { Schema } from "@caffeine/schema";
+import { t } from "@caffeine/models";
 
 describe("PostTypeRepository", () => {
-	let sut: PostTypeRepository;
+	let repository: PostTypeRepository;
+	const validSchemaString = Schema.make(
+		t.Object({ content: t.String() }),
+	).toString();
 
 	beforeEach(() => {
-		sut = new PostTypeRepository();
+		repository = new PostTypeRepository();
 	});
 
-	const createPostType = (name = "Test", isHighlighted = false) => {
-		return PostType.make(
-			{
-				name,
-				slug: slugify(name),
-				isHighlighted,
-			},
-			Schema.make(t.Object({ type: t.String() })),
-			{
-				id: generateUUID(),
-				createdAt: new Date().toISOString(),
-			},
-		);
+	const makePostType = (
+		overrides: Partial<Parameters<typeof PostType.make>[0]> = {},
+	) => {
+		return PostType.make({
+			name: "Test Post Type",
+			schema: validSchemaString,
+			isHighlighted: false,
+			...overrides,
+		});
 	};
 
-	it("should be able to create a post type", async () => {
-		const postType = createPostType();
-		await sut.create(postType);
-		expect(sut.items).toHaveLength(1);
-		expect(sut.items[0]).toEqual(postType);
+	it("should create a post type", async () => {
+		const postType = makePostType();
+		await repository.create(postType);
+
+		expect(repository.items).toHaveLength(1);
+		expect(repository.items[0]).toBe(postType);
 	});
 
-	it("should be able to find by id", async () => {
-		const postType = createPostType();
-		await sut.create(postType);
-		const found = await sut.findById(postType.id);
-		expect(found).toBeTruthy();
-		expect(found?.id).toBe(postType.id);
-		expect(found?.schema).toEqual(postType.schema.toString());
+	it("should update an existing post type", async () => {
+		const postType = makePostType({ name: "Old Name" });
+		await repository.create(postType);
+
+		postType.rename("New Name");
+		await repository.update(postType);
+
+		expect(repository.items[0]?.name).toBe("New Name");
 	});
 
-	it("should return null if id not found", async () => {
-		const found = await sut.findById("non-existent");
+	it("should not update if post type does not exist", async () => {
+		const postType = makePostType();
+		// Not creating it in repository
+
+		await repository.update(postType);
+		expect(repository.items).toHaveLength(0);
+	});
+
+	it("should delete a post type", async () => {
+		const postType = makePostType();
+		await repository.create(postType);
+		expect(repository.items).toHaveLength(1);
+
+		await repository.delete(postType);
+		expect(repository.items).toHaveLength(0);
+	});
+
+	it("should not delete if post type does not exist", async () => {
+		const postType = makePostType();
+		// Not creating it in repository
+
+		await repository.delete(postType);
+		expect(repository.items).toHaveLength(0);
+	});
+
+	it("should find a post type by id", async () => {
+		const postType = makePostType();
+		await repository.create(postType);
+
+		const found = await repository.findById(postType.id);
+		expect(found).toBe(postType);
+	});
+
+	it("should return null if post type is not found by id", async () => {
+		const found = await repository.findById("non-existent-id");
 		expect(found).toBeNull();
 	});
 
-	it("should be able to find many by id", async () => {
-		const pt1 = createPostType("1");
-		const pt2 = createPostType("2");
-		await sut.create(pt1);
-		await sut.create(pt2);
+	it("should find a post type by slug", async () => {
+		const postType = makePostType({ slug: "custom-slug" });
+		await repository.create(postType);
 
-		const found = await sut.findManyById(pt1.id, pt2.id);
-		expect(found).toHaveLength(2);
+		const found = await repository.findBySlug("custom-slug");
+		expect(found).toBe(postType);
 	});
 
-	it("should be able to find by slugify", async () => {
-		const postType = createPostType("Unique Name");
-		await sut.create(postType);
-		const found = await sut.findBySlug(slugify("Unique Name"));
-		expect(found).toBeTruthy();
-		expect(found?.id).toBe(postType.id);
-	});
-
-	it("should return null if slugify not found", async () => {
-		const found = await sut.findBySlug(slugify("Non Existent"));
+	it("should return null if post type is not found by slug", async () => {
+		const found = await repository.findBySlug("non-existent-slug");
 		expect(found).toBeNull();
 	});
 
-	it("should be able to find many with pagination", async () => {
-		for (let i = 1; i <= 22; i++) {
-			await sut.create(createPostType(`t ${i}`));
+	it("should find many post types with pagination", async () => {
+		const total = MAX_ITEMS_PER_QUERY + 5;
+		for (let i = 0; i < total; i++) {
+			await repository.create(makePostType({ name: `Name ${i}` }));
 		}
 
-		// Page 1, Offset 10 -> items 0-9
-		const page1 = await sut.findMany(1);
-		expect(page1).toHaveLength(10);
-		expect(page1[0]?.name).toBe("t 1");
+		const firstPage = await repository.findMany(1);
+		expect(firstPage).toHaveLength(MAX_ITEMS_PER_QUERY);
 
-		// Page 3, Offset 10 -> items 20-21 (2 items)
-		const page3 = await sut.findMany(3);
-		expect(page3).toHaveLength(2);
-		expect(page3[0]?.name).toBe("t 21");
+		const secondPage = await repository.findMany(2);
+		expect(secondPage).toHaveLength(5);
 	});
 
-	it("should be able to update a post type", async () => {
-		const postType = createPostType("Original");
-		await sut.create(postType);
+	it("should find many post types by ids", async () => {
+		const p1 = makePostType();
+		const p2 = makePostType();
+		const p3 = makePostType();
 
-		// Mutate safely? PostType logic might require immutability or specific methods,
-		// but since we passed entityProps, we can try to recreate or just modify prop if accessible.
-		// PostType has public `name`.
-		postType.name = "Updated";
+		await repository.create(p1);
+		await repository.create(p2);
+		await repository.create(p3);
 
-		await sut.update(postType);
-
-		const found = await sut.findById(postType.id);
-		expect(found?.name).toBe("Updated");
+		const found = await repository.findManyByIds([p1.id, p3.id]);
+		expect(found).toHaveLength(2);
+		expect(found).toContain(p1);
+		expect(found).toContain(p3);
 	});
 
-	it("should gracefully handle updating non-existent post type", async () => {
-		const postType = createPostType();
-		await sut.update(postType);
-		const found = await sut.findById(postType.id);
-		expect(found).toBeNull();
+	it("should find highlighted post types with pagination", async () => {
+		const totalHighlights = MAX_ITEMS_PER_QUERY + 2;
+
+		for (let i = 0; i < totalHighlights; i++) {
+			await repository.create(
+				makePostType({ name: `H ${i}`, isHighlighted: true }),
+			);
+		}
+
+		await repository.create(
+			makePostType({ name: "Not Highlighted", isHighlighted: false }),
+		);
+
+		const firstPage = await repository.findHighlights(1);
+		expect(firstPage).toHaveLength(MAX_ITEMS_PER_QUERY);
+		expect(firstPage.every((p) => p.isHighlighted)).toBe(true);
+
+		const secondPage = await repository.findHighlights(2);
+		expect(secondPage).toHaveLength(2);
 	});
 
-	it("should be able to get highlights", async () => {
-		const h1 = createPostType("H1", true);
-		const n1 = createPostType("N1", false);
-		const h2 = createPostType("H2", true);
+	it("should count all post types", async () => {
+		await repository.create(makePostType());
+		await repository.create(makePostType());
 
-		await sut.create(h1);
-		await sut.create(n1);
-		await sut.create(h2);
-
-		const highlights = await sut.getHighlights();
-		expect(highlights).toHaveLength(2);
-		expect(highlights.map((h) => h.id)).toContain(h1.id);
-		expect(highlights.map((h) => h.id)).toContain(h2.id);
-		expect(highlights.map((h) => h.id)).not.toContain(n1.id);
+		const count = await repository.count();
+		expect(count).toBe(2);
 	});
 
-	it("should be able to get length", async () => {
-		await sut.create(createPostType("1"));
-		await sut.create(createPostType("2"));
+	it("should count highlighted post types", async () => {
+		await repository.create(makePostType({ isHighlighted: true }));
+		await repository.create(makePostType({ isHighlighted: true }));
+		await repository.create(makePostType({ isHighlighted: false }));
 
-		const length = await sut.length();
-		expect(length).toBe(2);
-	});
-
-	it("should be able to delete a post type", async () => {
-		const postType = createPostType();
-		await sut.create(postType);
-		await sut.delete(postType);
-		const found = await sut.findById(postType.id);
-		expect(found).toBeNull();
-		expect(sut.items).toHaveLength(0);
-	});
-
-	it("should gracefully handle deleting non-existent post type", async () => {
-		const postType = createPostType();
-		// Not added to repo
-		await sut.delete(postType);
-		expect(sut.items).toHaveLength(0);
+		const count = await repository.countHighlights();
+		expect(count).toBe(2);
 	});
 });

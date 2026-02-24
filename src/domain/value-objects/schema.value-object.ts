@@ -13,11 +13,22 @@ export class SchemaVO extends ValueObject<
 	protected override schema: Schema<t.TString> = SchemaSchema;
 
 	public static make(value: string, info: IValueObjectMetadata): SchemaVO {
-		const newVO = new SchemaVO(SchemaManager.build(value), info);
+		const newVO = new SchemaVO(SchemaVO.tryBuildSchema(value, info), info);
 
 		newVO.validate();
 
 		return newVO;
+	}
+
+	private static tryBuildSchema(
+		value: string,
+		info: IValueObjectMetadata,
+	): Schema<t.TString> {
+		try {
+			return SchemaManager.build(value);
+		} catch (_) {
+			throw new InvalidPropertyException(info.name, info.source);
+		}
 	}
 
 	protected override validate(): void {

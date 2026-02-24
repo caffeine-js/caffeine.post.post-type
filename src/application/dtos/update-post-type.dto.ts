@@ -27,6 +27,7 @@ export const UpdatePostTypeDTO = t.Object(
 	},
 	{
 		description: "Data transfer object for updating an existing post type.",
+		minProperties: 1,
 	},
 );
 

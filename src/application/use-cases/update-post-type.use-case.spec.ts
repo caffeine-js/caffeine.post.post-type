@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { UpdatePostTypeBySlugUseCase } from "./update-post-type-by-slug.use-case";
+import { UpdatePostTypeUseCase } from "./update-post-type.use-case";
 import { PostTypeRepository } from "@/infra/repositories/test/post-type-repository";
 import { FindPostTypeUseCase } from "./find-post-type.use-case";
 import { PostType } from "@/domain";
@@ -15,7 +15,7 @@ import { FindEntityByTypeUseCase } from "@caffeine/application/use-cases";
 import type { UnpackedPostTypeDTO } from "@/domain/dtos";
 import type { IPostType, IPostTypeReader } from "@/domain/types";
 
-describe("UpdatePostTypeBySlugUseCase", () => {
+describe("UpdatePostTypeUseCase", () => {
 	let repository: PostTypeRepository;
 	let uniquenessChecker: IPostTypeUniquenessCheckerService;
 	let findEntityByType: FindEntityByTypeUseCase<
@@ -24,7 +24,7 @@ describe("UpdatePostTypeBySlugUseCase", () => {
 		IPostTypeReader
 	>;
 	let findPostTypeUseCase: FindPostTypeUseCase;
-	let sut: UpdatePostTypeBySlugUseCase;
+	let sut: UpdatePostTypeUseCase;
 
 	const validSchemaString = Schema.make(
 		t.Object({ content: t.String() }),
@@ -36,7 +36,7 @@ describe("UpdatePostTypeBySlugUseCase", () => {
 		findEntityByType = new FindEntityByTypeUseCase(repository);
 		findPostTypeUseCase = new FindPostTypeUseCase(findEntityByType);
 
-		sut = new UpdatePostTypeBySlugUseCase(
+		sut = new UpdatePostTypeUseCase(
 			repository,
 			findPostTypeUseCase,
 			uniquenessChecker,

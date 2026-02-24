@@ -1,100 +1,91 @@
-import type { PostType } from "@/domain/post-type";
+import { PostType } from "@/domain/post-type";
+import type { IPostType } from "@/domain/types";
 import type { IPostTypeRepository } from "@/domain/types/post-type-repository.interface";
-import type { IUnmountedPostType } from "@/domain/types/unmounted-post-type.interface";
-import {
-	prisma,
-	prismaErrorManager,
-} from "@caffeine-packages/post.db.prisma-drive";
-import {
-	parseIsoDateTimeToPrismaDateTime,
-	parsePrismaDateTimeToISOString,
-} from "@caffeine-packages/post.db.prisma-drive/helpers";
+import { prisma } from "@caffeine-packages/post.db.prisma-drive";
+import { SafePrisma } from "@caffeine-packages/post.db.prisma-drive/decorators";
 import { MAX_ITEMS_PER_QUERY } from "@caffeine/constants";
+import { Mapper } from "@caffeine/entity";
+import { EntitySource } from "@caffeine/entity/symbols";
+import { PrismaPostTypeMapper } from "./prisma-post-type-mapper";
 
 export class PostTypeRepository implements IPostTypeRepository {
-	async create(postType: PostType): Promise<void> {
-		const {
-			createdAt: _createdAt,
-			updatedAt: _,
-			schema: _schema,
-			...properties
-		} = postType;
-
-		const createdAt = new Date(_createdAt);
-		const schema = _schema.toString();
-
-		try {
-			await prisma.postType.create({
-				data: { createdAt, schema, ...properties },
-			});
-		} catch (err: unknown) {
-			prismaErrorManager("post@post-type", err);
-		}
+	@SafePrisma(PostType[EntitySource])
+	async create(data: IPostType): Promise<void> {
+		await prisma.postType.create({
+			data: Mapper.toDTO(data),
+		});
 	}
 
-	async findById(id: string): Promise<IUnmountedPostType | null> {
+	@SafePrisma(PostType[EntitySource])
+	async update(_data: IPostType): Promise<void> {
+		const { id, ...data } = Mapper.toDTO(_data);
+
+		await prisma.postType.update({
+			where: { id },
+			data,
+		});
+	}
+
+	@SafePrisma(PostType[EntitySource])
+	async delete(postType: IPostType): Promise<void> {
+		await prisma.postType.delete({ where: { id: postType.id } });
+	}
+
+	@SafePrisma(PostType[EntitySource])
+	async findById(id: string): Promise<IPostType | null> {
 		const targetPostType = await prisma.postType.findFirst({ where: { id } });
 
 		if (!targetPostType) return null;
 
-		return parsePrismaDateTimeToISOString(targetPostType);
+		return PrismaPostTypeMapper.run(targetPostType);
 	}
 
-	async findBySlug(slug: string): Promise<IUnmountedPostType | null> {
+	@SafePrisma(PostType[EntitySource])
+	async findBySlug(slug: string): Promise<IPostType | null> {
 		const targetPostType = await prisma.postType.findFirst({ where: { slug } });
 
 		if (!targetPostType) return null;
 
-		return parsePrismaDateTimeToISOString(targetPostType);
+		return PrismaPostTypeMapper.run(targetPostType);
 	}
 
-	async findMany(page: number): Promise<IUnmountedPostType[]> {
+	@SafePrisma(PostType[EntitySource])
+	async findMany(page: number): Promise<IPostType[]> {
 		return (
 			await prisma.postType.findMany({
 				skip: MAX_ITEMS_PER_QUERY * page,
 				take: MAX_ITEMS_PER_QUERY,
 			})
-		).map((item) => parsePrismaDateTimeToISOString(item));
+		).map((item) => PrismaPostTypeMapper.run(item));
 	}
 
-	async update(postType: PostType): Promise<void> {
-		const { schema: _schema, ...propeties } = postType;
-		const schema = _schema.toString();
-
-		const targetPostType = parseIsoDateTimeToPrismaDateTime({
-			...propeties,
-			schema,
-		});
-
-		try {
-			await prisma.postType.update({
-				where: { id: postType.id },
-				data: targetPostType,
-			});
-		} catch (err: unknown) {
-			prismaErrorManager("post@post-type", err);
-		}
+	@SafePrisma(PostType[EntitySource])
+	async findManyByIds(ids: string[]): Promise<IPostType[]> {
+		return (
+			await prisma.postType.findMany({
+				where: { id: { in: ids } },
+			})
+		).map((item) => PrismaPostTypeMapper.run(item));
 	}
 
-	async delete(postType: PostType): Promise<void> {
-		try {
-			await prisma.postType.delete({ where: { id: postType.id } });
-		} catch (err: unknown) {
-			prismaErrorManager("post@post-type", err);
-		}
+	@SafePrisma(PostType[EntitySource])
+	async findHighlights(page: number): Promise<IPostType[]> {
+		return (
+			await prisma.postType.findMany({
+				where: { isHighlighted: true },
+				skip: MAX_ITEMS_PER_QUERY * page,
+				take: MAX_ITEMS_PER_QUERY,
+			})
+		).map((item) => PrismaPostTypeMapper.run(item));
 	}
 
-	async getHighlights(): Promise<IUnmountedPostType[]> {
-		const highlightedPostTypes = await prisma.postType.findMany({
-			where: { isHighlighted: true },
-		});
-
-		return highlightedPostTypes.map((item) =>
-			parsePrismaDateTimeToISOString(item),
-		);
-	}
-
-	length(): Promise<number> {
+	@SafePrisma(PostType[EntitySource])
+	count(): Promise<number> {
 		return prisma.postType.count();
+	}
+
+	@SafePrisma(PostType[EntitySource])
+	countHighlights(): Promise<number> {
+		return prisma.postType.count({ where: { isHighlighted: true } });
 	}
 }

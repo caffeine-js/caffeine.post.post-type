@@ -9,8 +9,9 @@ import { PostType } from "@/domain";
 import { EntitySource } from "@caffeine/entity/symbols";
 import { slugify } from "@caffeine/entity/helpers";
 import type { IPostTypeUniquenessCheckerService } from "@/domain/types/services";
+import { UpdatePostTypeSchema } from "../schemas/update-post-type.schema";
 
-export class UpdatePostTypeBySlugUseCase {
+export class UpdatePostTypeUseCase {
 	public constructor(
 		private readonly writer: IPostTypeWriter,
 		private readonly findPostType: FindPostTypeUseCase,
@@ -19,13 +20,15 @@ export class UpdatePostTypeBySlugUseCase {
 
 	public async run(
 		value: string,
-		{ isHighlighted, name, slug }: UpdatePostTypeDTO,
+		dto: UpdatePostTypeDTO,
 		updateSlug: boolean = false,
 	) {
-		if (isHighlighted === undefined && !name && !slug)
+		const { isHighlighted, name, slug } = dto;
+
+		if (!UpdatePostTypeSchema.match(dto))
 			throw new InvalidOperationException(
 				PostType[EntitySource],
-				"No data provided for update. At least one field must be informed.",
+				"At least one field must be provided for the update operation.",
 			);
 
 		if (name && updateSlug && slug)
