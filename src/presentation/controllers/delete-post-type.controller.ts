@@ -1,22 +1,26 @@
-import { makeDeletePostTypeBySlugUseCase } from "@/infra/factories/application/delete-post-type-by-slug.use-case.factory";
-import { AuthGuard } from "@caffeine/auth/plugins/guards";
-import { SlugObjectDTO } from "@caffeine/models/dtos";
+import { PostType } from "@/domain";
+import { UnpackedPostTypeDTO } from "@/domain/dtos";
+import { makeDeletePostTypeUseCase } from "@/infra/factories/application/use-cases";
+import { CaffeineAuth } from "@caffeine/auth/plugins/guards";
+import { EntitySource } from "@caffeine/entity/symbols";
+import { IdOrSlugDTO } from "@caffeine/presentation";
 import { Elysia } from "elysia";
 
+const DELETE_POST_TYPE = `${PostType[EntitySource]}:delete-post-type` as const;
+
 export const DeletePostTypeController = new Elysia()
-	.use(AuthGuard({ layerName: "post@post-type" }))
-	.decorate("service", makeDeletePostTypeBySlugUseCase())
+	.use(CaffeineAuth({ layerName: PostType[EntitySource] }))
+	.decorate(DELETE_POST_TYPE, makeDeletePostTypeUseCase())
 	.delete(
-		"/by-slug/:slug",
-		({ params: { slug }, service }) => {
-			return service.run(slug);
-		},
+		"/:id-or-slug",
+		({ params, [DELETE_POST_TYPE]: service, status }) =>
+			status(200, service!.run(params["id-or-slug"]) as never),
 		{
-			params: SlugObjectDTO,
+			params: IdOrSlugDTO,
 			detail: {
 				summary: "Delete Post Type",
-				tags: ["Post Types"],
-				description: "Deletes a post type identified by its slug.",
+				description: "Deletes a post type identified by its slug or id.",
 			},
+			response: { 200: UnpackedPostTypeDTO },
 		},
 	);

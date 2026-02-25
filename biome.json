@@ -21,6 +21,9 @@
 			},
 			"correctness": {
 				"useParseIntRadix": "off"
+			},
+			"style": {
+				"noNonNullAssertion": "off"
 			}
 		}
 	},

@@ -53,7 +53,7 @@ export class PostTypeRepository implements IPostTypeRepository {
 	async findMany(page: number): Promise<IPostType[]> {
 		return (
 			await prisma.postType.findMany({
-				skip: MAX_ITEMS_PER_QUERY * page,
+				skip: MAX_ITEMS_PER_QUERY * (page - 1),
 				take: MAX_ITEMS_PER_QUERY,
 			})
 		).map((item) => PrismaPostTypeMapper.run(item));
@@ -73,7 +73,7 @@ export class PostTypeRepository implements IPostTypeRepository {
 		return (
 			await prisma.postType.findMany({
 				where: { isHighlighted: true },
-				skip: MAX_ITEMS_PER_QUERY * page,
+				skip: MAX_ITEMS_PER_QUERY * (page - 1),
 				take: MAX_ITEMS_PER_QUERY,
 			})
 		).map((item) => PrismaPostTypeMapper.run(item));
