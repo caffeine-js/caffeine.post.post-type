@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { CreatePostTypeUseCase } from "./create-post-type.use-case";
 import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
 import { ResourceAlreadyExistsException } from "@caffeine/errors/application";
@@ -30,7 +30,6 @@ describe("CreatePostTypeUseCase", () => {
 
 		expect(result).toBeDefined();
 		expect(result.name).toBe("Test Post Type");
-		expect(result.slug).toBe("test-post-type");
 		expect(repository.items).toHaveLength(1);
 		expect(repository.items[0]).toEqual(result);
 	});

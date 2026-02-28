@@ -1,83 +1,187 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Elysia } from "elysia";
-import { faker } from "@faker-js/faker";
-import { GetAccessController } from "@caffeine/auth/plugins/controllers";
-import { PostTypeRoutes } from "../routes";
-import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
-import { CaffeineErrorHandler } from "@caffeine/api-error-handler";
-import { CaffeineResponseMapper } from "@caffeine/api-response-mapper";
-
-import { PostType } from "@/domain";
-import { Schema } from "@caffeine/schema";
+import { describe, it, beforeEach, expect } from "bun:test";
+import { bootstrap } from "../dev/bootstrap";
 import { t } from "@caffeine/models";
+import { faker } from "@faker-js/faker";
+import { Schema } from "@caffeine/schema";
+import { treaty } from "@elysiajs/eden";
+import { slugify } from "@caffeine/entity/helpers";
 
-const makePostType = (props: Partial<Parameters<typeof PostType.make>[0]>) =>
-	PostType.make({
-		name: "Default Post",
-		schema: Schema.make(t.Object({ content: t.String() })).toString(),
-		...props,
-	});
+const PostTypeDTO = t.Object({
+    name: t.String({ description: "testing post type features" }),
+});
 
-const AUTH_EMAIL = faker.internet.email();
-const AUTH_PASSWORD =
-	faker.internet.password({ length: 12, pattern: /[A-Za-z0-9!@#$%^&*]/ }) +
-	"A1!";
-const JWT_SECRET = faker.string.uuid();
+const PostTypeSchema = Schema.make(PostTypeDTO);
+
+type App = Awaited<ReturnType<typeof bootstrap>>;
 
 describe("UpdatePostTypeController", () => {
-	let app: any;
-	let repository: PostTypeRepository;
-	let accessTokenCookie: string;
+    let server: App;
+    let api: ReturnType<typeof treaty<App>>;
+    let env: App["decorator"]["env"];
 
-	beforeEach(async () => {
-		vi.resetModules();
-		vi.clearAllMocks();
+    beforeEach(async () => {
+        server = await bootstrap();
+        await (
+            server.decorator.cache as unknown as {
+                flushall: () => Promise<void>;
+            }
+        ).flushall();
+        api = treaty<typeof server>(server);
+        env = server.decorator.env;
+    });
 
-		repository = new PostTypeRepository();
+    async function authenticate() {
+        const { AUTH_EMAIL: email, AUTH_PASSWORD: password } = env;
+        const auth = await api.auth.login.post({ email, password });
+        const cookies = auth.response.headers.getSetCookie();
+        return { headers: { cookie: cookies.join("; ") } };
+    }
 
-		app = new Elysia()
-			.use(CaffeineResponseMapper)
-			.use(CaffeineErrorHandler)
-			.use(GetAccessController({ AUTH_EMAIL, AUTH_PASSWORD, JWT_SECRET }))
-			.use(PostTypeRoutes(repository, JWT_SECRET));
+    async function createPostType(
+        options: Awaited<ReturnType<typeof authenticate>>,
+    ) {
+        const name = faker.book.title();
+        const { data } = await api["post-types"].post(
+            { name, schema: PostTypeSchema.toString() },
+            options,
+        );
+        return data!;
+    }
 
-		const loginResponse = await app.handle(
-			new Request("http://localhost/auth/login", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: AUTH_EMAIL, password: AUTH_PASSWORD }),
-			}),
-		);
+    function postType(idOrSlug: string) {
+        return api["post-types"]({ "id-or-slug": idOrSlug });
+    }
 
-		expect(loginResponse.status).toBe(200);
-		const cookieHeader = loginResponse.headers.get("Set-Cookie");
-		if (cookieHeader) {
-			const tokenMatch = cookieHeader.match(/ACCESS_TOKEN=([^;]+)/);
-			accessTokenCookie = tokenMatch ? `ACCESS_TOKEN=${tokenMatch[1]}` : "";
-		}
-	});
+    it("should update the name of a post type", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+        const newName = faker.book.title();
 
-	it("should update a post type via PATCH /post-types/:id-or-slug", async () => {
-		repository.items.push(makePostType({ name: "Old Name", slug: "old-name" }));
+        const { status, data } = await postType(created.slug).patch(
+            { name: newName },
+            options,
+        );
 
-		const requestBody = {
-			name: "New Name",
-		};
+        expect(status).toBe(200);
+        expect(data?.name).toBe(newName);
+        expect(data?.slug).toBe(created.slug);
+    });
 
-		const response = await app.handle(
-			new Request("http://localhost/post-types/old-name?update-slug=true", {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-					Cookie: accessTokenCookie,
-				},
-				body: JSON.stringify(requestBody),
-			}),
-		);
+    it("should update the name and slug together when update-slug is true", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+        const newName = faker.book.title();
 
-		expect(response.status).toBe(200);
-		const body = await response.json();
-		expect(body.name).toBe("New Name");
-		expect(body.slug).toBe("new-name");
-	});
+        const { status, data } = await postType(created.slug).patch(
+            { name: newName },
+            { ...options, query: { "update-slug": true } },
+        );
+
+        expect(status).toBe(200);
+        expect(data?.name).toBe(newName);
+        expect(data?.slug).toBe(slugify(newName));
+    });
+
+    it("should update only the slug", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+        const newSlug = "custom-slug";
+
+        const { status, data } = await postType(created.slug).patch(
+            { slug: newSlug },
+            options,
+        );
+
+        expect(status).toBe(200);
+        expect(data?.slug).toBe(newSlug);
+        expect(data?.name).toBe(created.name);
+    });
+
+    it("should toggle isHighlighted", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+
+        expect(created.isHighlighted).toBe(false);
+
+        const { status, data } = await postType(created.slug).patch(
+            { isHighlighted: true },
+            options,
+        );
+
+        expect(status).toBe(200);
+        expect(data?.isHighlighted).toBe(true);
+    });
+
+    it("should update a post type by id", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+        const newName = faker.book.title();
+
+        const { status, data } = await postType(created.id).patch(
+            { name: newName },
+            options,
+        );
+
+        expect(status).toBe(200);
+        expect(data?.name).toBe(newName);
+    });
+
+    it("should reject unauthenticated requests", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+
+        const { status } = await postType(created.slug).patch({
+            name: "new-name",
+        });
+
+        expect(status).not.toBe(200);
+    });
+
+    it("should reject an empty body", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+
+        const { status } = await postType(created.slug).patch(
+            {} as never,
+            options,
+        );
+
+        expect(status).toBe(422);
+    });
+
+    it("should fail when updating a non-existent post type", async () => {
+        const options = await authenticate();
+
+        const { status } = await postType("non-existent-slug").patch(
+            { name: "whatever" },
+            options,
+        );
+
+        expect(status).not.toBe(200);
+    });
+
+    it("should reject setting slug and update-slug at the same time", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+
+        const { status } = await postType(created.slug).patch(
+            { name: "new-name", slug: "new-slug" },
+            { ...options, query: { "update-slug": true } },
+        );
+
+        expect(status).not.toBe(200);
+    });
+
+    it("should reject a duplicate slug", async () => {
+        const options = await authenticate();
+        const first = await createPostType(options);
+        const second = await createPostType(options);
+
+        const { status } = await postType(second.slug).patch(
+            { slug: first.slug },
+            options,
+        );
+
+        expect(status).not.toBe(200);
+    });
 });

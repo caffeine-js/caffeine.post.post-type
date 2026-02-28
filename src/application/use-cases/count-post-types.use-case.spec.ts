@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { CountPostTypesUseCase } from "./count-post-types.use-case";
 import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
 import { PostType } from "@/domain";

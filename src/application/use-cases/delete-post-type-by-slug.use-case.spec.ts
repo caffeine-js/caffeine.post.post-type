@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { DeletePostTypeUseCase } from "./delete-post-type-by-slug.use-case";
 import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
 import { FindPostTypeUseCase } from "./find-post-type.use-case";
@@ -36,7 +36,7 @@ describe("DeletePostTypeUseCase", () => {
 		const postType = PostType.make({ name: "Test", schema: validSchemaString });
 		await repository.create(postType);
 
-		await sut.run("test");
+		await sut.run(postType.slug);
 
 		expect(repository.items).toHaveLength(0);
 	});

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { FindPostTypeUseCase } from "./find-post-type.use-case";
 import { PostType } from "@/domain";
 import { EntitySource } from "@caffeine/entity/symbols";
@@ -14,6 +14,7 @@ describe("FindPostTypeUseCase", () => {
 		IPostType,
 		IPostTypeReader
 	>;
+	let mockRun: ReturnType<typeof mock>;
 	let sut: FindPostTypeUseCase;
 
 	const validSchemaString = Schema.make(
@@ -21,8 +22,9 @@ describe("FindPostTypeUseCase", () => {
 	).toString();
 
 	beforeEach(() => {
+		mockRun = mock();
 		findEntityByTypeUseCaseMock = {
-			run: vi.fn(),
+			run: mockRun,
 		} as unknown as FindEntityByTypeUseCase<
 			typeof UnpackedPostTypeDTO,
 			IPostType,
@@ -36,11 +38,11 @@ describe("FindPostTypeUseCase", () => {
 			name: "Test",
 			schema: validSchemaString,
 		});
-		vi.mocked(findEntityByTypeUseCaseMock.run).mockResolvedValue(postType);
+		mockRun.mockResolvedValue(postType);
 
 		const result = await sut.run("any-value");
 
-		expect(findEntityByTypeUseCaseMock.run).toHaveBeenCalledWith(
+		expect(mockRun).toHaveBeenCalledWith(
 			"any-value",
 			PostType[EntitySource],
 		);

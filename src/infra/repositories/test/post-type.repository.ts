@@ -2,7 +2,11 @@ import type { IPostType, IPostTypeRepository } from "@/domain/types";
 import { MAX_ITEMS_PER_QUERY } from "@caffeine/constants";
 
 export class PostTypeRepository implements IPostTypeRepository {
-	items: IPostType[] = [];
+	items: IPostType[];
+
+	constructor() {
+		this.items = [];
+	}
 
 	async create(postType: IPostType): Promise<void> {
 		this.items.push(postType);

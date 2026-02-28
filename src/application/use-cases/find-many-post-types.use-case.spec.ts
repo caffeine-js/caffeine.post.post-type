@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { CountPostTypesUseCase } from "./count-post-types.use-case";
 import { FindManyPostTypesUseCase } from "./find-many-post-types.use-case";
 import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
@@ -31,5 +31,13 @@ describe("FindManyPostTypesUseCase", () => {
 		expect(result.value[0]).toBe(postType);
 		expect(result.count).toBe(1);
 		expect(result.totalPages).toBe(1);
+	});
+
+	it("should return empty results when no post types exist", async () => {
+		const result = await sut.run(1);
+
+		expect(result.value).toHaveLength(0);
+		expect(result.count).toBe(0);
+		expect(result.totalPages).toBe(0);
 	});
 });

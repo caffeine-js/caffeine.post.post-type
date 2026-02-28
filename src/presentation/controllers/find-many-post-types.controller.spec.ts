@@ -1,75 +1,136 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Elysia } from "elysia";
-import { faker } from "@faker-js/faker";
-import { GetAccessController } from "@caffeine/auth/plugins/controllers";
-import { PostTypeRoutes } from "../routes";
-import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
-import { CaffeineErrorHandler } from "@caffeine/api-error-handler";
-import { CaffeineResponseMapper } from "@caffeine/api-response-mapper";
-
-import { PostType } from "@/domain";
-import { Schema } from "@caffeine/schema";
+import { describe, it, beforeEach, expect } from "bun:test";
+import { bootstrap } from "../dev/bootstrap";
 import { t } from "@caffeine/models";
+import { faker } from "@faker-js/faker";
+import { Schema } from "@caffeine/schema";
+import { treaty } from "@elysiajs/eden";
 
-const makePostType = (props: Partial<Parameters<typeof PostType.make>[0]>) =>
-	PostType.make({
-		name: "Default Post",
-		schema: Schema.make(t.Object({ content: t.String() })).toString(),
-		...props,
-	});
+const PostTypeDTO = t.Object({
+    name: t.String({ description: "testing post type features" }),
+});
 
-const AUTH_EMAIL = faker.internet.email();
-const AUTH_PASSWORD =
-	faker.internet.password({ length: 12, pattern: /[A-Za-z0-9!@#$%^&*]/ }) +
-	"A1!";
-const JWT_SECRET = faker.string.uuid();
+const PostTypeSchema = Schema.make(PostTypeDTO);
+
+type App = Awaited<ReturnType<typeof bootstrap>>;
 
 describe("FindManyPostTypesController", () => {
-	let app: any;
-	let repository: PostTypeRepository;
-	let accessTokenCookie: string;
+    let server: App;
+    let api: ReturnType<typeof treaty<App>>;
+    let env: App["decorator"]["env"];
 
-	beforeEach(async () => {
-		vi.resetModules();
-		vi.clearAllMocks();
+    beforeEach(async () => {
+        server = await bootstrap();
+        await (
+            server.decorator.cache as unknown as {
+                flushall: () => Promise<void>;
+            }
+        ).flushall();
+        api = treaty<typeof server>(server);
+        env = server.decorator.env;
+    });
 
-		repository = new PostTypeRepository();
+    async function authenticate() {
+        const { AUTH_EMAIL: email, AUTH_PASSWORD: password } = env;
+        const auth = await api.auth.login.post({ email, password });
+        const cookies = auth.response.headers.getSetCookie();
+        return { headers: { cookie: cookies.join("; ") } };
+    }
 
-		app = new Elysia()
-			.use(CaffeineResponseMapper)
-			.use(CaffeineErrorHandler)
-			.use(GetAccessController({ AUTH_EMAIL, AUTH_PASSWORD, JWT_SECRET }))
-			.use(PostTypeRoutes(repository, JWT_SECRET));
+    async function createPostType(
+        options: Awaited<ReturnType<typeof authenticate>>,
+    ) {
+        const name = faker.book.title();
+        await api["post-types"].post(
+            { name, schema: PostTypeSchema.toString() },
+            options,
+        );
+    }
 
-		const loginResponse = await app.handle(
-			new Request("http://localhost/auth/login", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: AUTH_EMAIL, password: AUTH_PASSWORD }),
-			}),
-		);
+    it("should return an empty list when no post types exist", async () => {
+        const { status, data } = await api["post-types"].get({
+            query: { page: 1 },
+        });
 
-		expect(loginResponse.status).toBe(200);
-		const cookieHeader = loginResponse.headers.get("Set-Cookie");
-		if (cookieHeader) {
-			const tokenMatch = cookieHeader.match(/ACCESS_TOKEN=([^;]+)/);
-			accessTokenCookie = tokenMatch ? `ACCESS_TOKEN=${tokenMatch[1]}` : "";
-		}
-	});
+        expect(status).toBe(200);
+        expect(data).toEqual([]);
+    });
 
-	it("should find many post types via GET /post-types/", async () => {
-		for (let i = 0; i < 3; i++) {
-			repository.items.push(makePostType({ name: `Post ${i}` }));
-		}
+    it("should return all created post types", async () => {
+        const options = await authenticate();
+        await createPostType(options);
+        await createPostType(options);
+        await createPostType(options);
 
-		const response = await app.handle(
-			new Request("http://localhost/post-types/", {
-				method: "GET",
-			}),
-		);
+        const { status, data } = await api["post-types"].get({
+            query: { page: 1 },
+        });
 
-		expect(response.status).toBe(200);
-		const body = await response.json();
-		expect(body).toHaveLength(3);
-	});
+        expect(status).toBe(200);
+        expect(data).toHaveLength(3);
+    });
+
+    it("should not require authentication", async () => {
+        const { status } = await api["post-types"].get({
+            query: { page: 1 },
+        });
+
+        expect(status).toBe(200);
+    });
+
+    it("should return post type objects with expected fields", async () => {
+        const options = await authenticate();
+        await createPostType(options);
+
+        const { data } = await api["post-types"].get({
+            query: { page: 1 },
+        });
+
+        expect(data).toHaveLength(1);
+
+        const item = data![0]!;
+        expect(item.name).toBeDefined();
+        expect(item.slug).toBeDefined();
+        expect(item.schema).toBeDefined();
+        expect(typeof item.isHighlighted).toBe("boolean");
+        expect(item.id).toBeDefined();
+        expect(item.createdAt).toBeDefined();
+    });
+
+    it("should default to page 1", async () => {
+        const options = await authenticate();
+        await createPostType(options);
+
+        const { status, data } = await api["post-types"].get({
+            query: { page: 1 },
+        });
+
+        expect(status).toBe(200);
+        expect(Array.isArray(data)).toBe(true);
+    });
+
+    it("should return pagination headers", async () => {
+        const options = await authenticate();
+        await createPostType(options);
+        await createPostType(options);
+        await createPostType(options);
+
+        const { response } = await api["post-types"].get({
+            query: { page: 1 },
+        });
+
+        expect(response.headers.get("x-total-count")).toBe("3");
+        expect(response.headers.get("x-total-pages")).toBe("1");
+    });
+
+    it("should return an empty list for a page beyond available data", async () => {
+        const options = await authenticate();
+        await createPostType(options);
+
+        const { status, data } = await api["post-types"].get({
+            query: { page: 999 },
+        });
+
+        expect(status).toBe(200);
+        expect(data).toEqual([]);
+    });
 });

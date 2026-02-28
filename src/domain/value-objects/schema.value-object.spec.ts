@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, spyOn } from "bun:test";
 import { SchemaVO } from "./schema.value-object";
 import { t } from "@caffeine/models";
 import { Schema, SchemaManager } from "@caffeine/schema";
@@ -23,12 +23,8 @@ describe("SchemaVO", () => {
 		expect(() => SchemaVO.make(123, info)).toThrow();
 	});
 
-	it("should throw an error if typebox format 'json' is strictly enforced for invalid JSON", () => {
-		try {
-			SchemaVO.make("invalid json string", info);
-		} catch (error) {
-			expect(error).toBeDefined();
-		}
+	it("should throw an error for invalid JSON string", () => {
+		expect(() => SchemaVO.make("invalid json string", info)).toThrow();
 	});
 
 	it("should throw InvalidPropertyException when validate() fails defensively", () => {
@@ -36,8 +32,7 @@ describe("SchemaVO", () => {
 			t.Object({ content: t.String({ minLength: 1 }) }),
 		).toString();
 
-		// Mock isSchema validation strictly for value object logic
-		const spy = vi.spyOn(SchemaManager, "isSchema").mockReturnValue(false);
+		const spy = spyOn(SchemaManager, "isSchema").mockReturnValue(false);
 
 		expect(() => SchemaVO.make(validJsonSchema, info)).toThrow();
 

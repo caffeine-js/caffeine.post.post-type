@@ -1,75 +1,112 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Elysia } from "elysia";
-import { faker } from "@faker-js/faker";
-import { GetAccessController } from "@caffeine/auth/plugins/controllers";
-import { PostTypeRoutes } from "../routes";
-import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
-import { CaffeineErrorHandler } from "@caffeine/api-error-handler";
-import { CaffeineResponseMapper } from "@caffeine/api-response-mapper";
-
-import { PostType } from "@/domain";
-import { Schema } from "@caffeine/schema";
+import { describe, it, beforeEach, expect } from "bun:test";
+import { bootstrap } from "../dev/bootstrap";
 import { t } from "@caffeine/models";
+import { faker } from "@faker-js/faker";
+import { Schema } from "@caffeine/schema";
+import { treaty } from "@elysiajs/eden";
 
-const makePostType = (props: Partial<Parameters<typeof PostType.make>[0]>) =>
-	PostType.make({
-		name: "Default Post",
-		schema: Schema.make(t.Object({ content: t.String() })).toString(),
-		...props,
-	});
+const PostTypeDTO = t.Object({
+    name: t.String({ description: "testing post type features" }),
+});
 
-const AUTH_EMAIL = faker.internet.email();
-const AUTH_PASSWORD =
-	faker.internet.password({ length: 12, pattern: /[A-Za-z0-9!@#$%^&*]/ }) +
-	"A1!";
-const JWT_SECRET = faker.string.uuid();
+const PostTypeSchema = Schema.make(PostTypeDTO);
+
+type App = Awaited<ReturnType<typeof bootstrap>>;
 
 describe("FindPostTypeController", () => {
-	let app: any;
-	let repository: PostTypeRepository;
-	let accessTokenCookie: string;
+    let server: App;
+    let api: ReturnType<typeof treaty<App>>;
+    let env: App["decorator"]["env"];
 
-	beforeEach(async () => {
-		vi.resetModules();
-		vi.clearAllMocks();
+    beforeEach(async () => {
+        server = await bootstrap();
+        await (
+            server.decorator.cache as unknown as {
+                flushall: () => Promise<void>;
+            }
+        ).flushall();
+        api = treaty<typeof server>(server);
+        env = server.decorator.env;
+    });
 
-		repository = new PostTypeRepository();
+    async function authenticate() {
+        const { AUTH_EMAIL: email, AUTH_PASSWORD: password } = env;
+        const auth = await api.auth.login.post({ email, password });
+        const cookies = auth.response.headers.getSetCookie();
+        return { headers: { cookie: cookies.join("; ") } };
+    }
 
-		app = new Elysia()
-			.use(CaffeineResponseMapper)
-			.use(CaffeineErrorHandler)
-			.use(GetAccessController({ AUTH_EMAIL, AUTH_PASSWORD, JWT_SECRET }))
-			.use(PostTypeRoutes(repository, JWT_SECRET));
+    async function createPostType(
+        options: Awaited<ReturnType<typeof authenticate>>,
+    ) {
+        const name = faker.book.title();
+        const { data } = await api["post-types"].post(
+            { name, schema: PostTypeSchema.toString() },
+            options,
+        );
+        return data!;
+    }
 
-		const loginResponse = await app.handle(
-			new Request("http://localhost/auth/login", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: AUTH_EMAIL, password: AUTH_PASSWORD }),
-			}),
-		);
+    function postType(idOrSlug: string) {
+        return api["post-types"]({ "id-or-slug": idOrSlug });
+    }
 
-		expect(loginResponse.status).toBe(200);
-		const cookieHeader = loginResponse.headers.get("Set-Cookie");
-		if (cookieHeader) {
-			const tokenMatch = cookieHeader.match(/ACCESS_TOKEN=([^;]+)/);
-			accessTokenCookie = tokenMatch ? `ACCESS_TOKEN=${tokenMatch[1]}` : "";
-		}
-	});
+    it("should find a post type by slug", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
 
-	it("should find a post type by slug via GET /post-types/:id-or-slug", async () => {
-		repository.items.push(
-			makePostType({ name: "Existing Post", slug: "existing-post" }),
-		);
+        const { status, data } = await postType(created.slug).get();
 
-		const response = await app.handle(
-			new Request("http://localhost/post-types/existing-post", {
-				method: "GET",
-			}),
-		);
+        expect(status).toBe(200);
+        expect(data?.slug).toBe(created.slug);
+        expect(data?.name).toBe(created.name);
+    });
 
-		expect(response.status).toBe(200);
-		const body = await response.json();
-		expect(body.name).toBe("Existing Post");
-	});
+    it("should find a post type by id", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+
+        const { status, data } = await postType(created.id).get();
+
+        expect(status).toBe(200);
+        expect(data?.id).toBe(created.id);
+    });
+
+    it("should return the full post type payload", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+
+        const { data } = await postType(created.slug).get();
+
+        expect(data).toMatchObject({
+            name: created.name,
+            slug: created.slug,
+            schema: created.schema,
+            isHighlighted: false,
+        });
+        expect(data?.id).toBeDefined();
+        expect(data?.createdAt).toBeDefined();
+    });
+
+    it("should not require authentication", async () => {
+        const options = await authenticate();
+        const created = await createPostType(options);
+
+        const { status } = await postType(created.slug).get();
+        expect(status).toBe(200);
+    });
+
+    it("should return an error for a non-existent slug", async () => {
+        const { status } = await postType("non-existent-slug").get();
+
+        expect(status).not.toBe(200);
+    });
+
+    it("should return an error for a non-existent id", async () => {
+        const { status } = await postType(
+            "550e8400-e29b-41d4-a716-446655440000",
+        ).get();
+
+        expect(status).not.toBe(200);
+    });
 });

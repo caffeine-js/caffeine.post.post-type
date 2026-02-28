@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { PostTypeRepository } from "./post-type.repository";
 import { PostType } from "@/domain/post-type";
 import { MAX_ITEMS_PER_QUERY } from "@caffeine/constants";

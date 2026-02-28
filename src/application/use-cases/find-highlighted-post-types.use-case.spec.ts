@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { CountPostTypesUseCase } from "./count-post-types.use-case";
 import { FindHighlightedPostTypesUseCase } from "./find-highlighted-post-types.use-case";
 import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
@@ -41,5 +41,21 @@ describe("FindHighlightedPostTypesUseCase", () => {
 		expect(result.value[0]).toBe(h1);
 		expect(result.count).toBe(1);
 		expect(result.totalPages).toBe(1);
+	});
+
+	it("should return empty results when no highlighted post types exist", async () => {
+		await repository.create(
+			PostType.make({
+				name: "Not Highlighted",
+				schema: validSchemaString,
+				isHighlighted: false,
+			}),
+		);
+
+		const result = await sut.run(1);
+
+		expect(result.value).toHaveLength(0);
+		expect(result.count).toBe(0);
+		expect(result.totalPages).toBe(0);
 	});
 });

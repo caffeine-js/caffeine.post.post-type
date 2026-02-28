@@ -10,7 +10,15 @@ export class SchemaVO extends ValueObject<
 	Schema<typeof SchemaDTO>,
 	typeof SchemaDTO
 > {
-	protected override schema: Schema<t.TString> = SchemaSchema;
+	protected override schema: Schema<t.TString>;
+
+	private constructor(
+		value: Schema<typeof SchemaDTO>,
+		info: IValueObjectMetadata,
+	) {
+		super(value, info);
+		this.schema = SchemaSchema;
+	}
 
 	public static make(value: string, info: IValueObjectMetadata): SchemaVO {
 		const newVO = new SchemaVO(SchemaVO.tryBuildSchema(value, info), info);

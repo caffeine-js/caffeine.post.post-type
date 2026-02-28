@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { PostType } from "./post-type";
 import { makeEntity } from "@caffeine/entity/factories";
 import { t } from "@caffeine/models";

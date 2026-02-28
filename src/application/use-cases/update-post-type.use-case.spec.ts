@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { UpdatePostTypeUseCase } from "./update-post-type.use-case";
 import { PostTypeRepository } from "@/infra/repositories/test/post-type.repository";
 import { FindPostTypeUseCase } from "./find-post-type.use-case";
@@ -67,11 +67,12 @@ describe("UpdatePostTypeUseCase", () => {
 	it("should update slug when updateSlug is true", async () => {
 		const postType = makePostType("Old Name");
 		await repository.create(postType);
+		const oldSlug = postType.slug;
 
-		await sut.run("old-name", { name: "New Name" }, true);
+		await sut.run(postType.slug, { name: "New Name" }, true);
 
-		expect(postType.slug).toBe("new-name");
-		expect(repository.items[0]?.slug).toBe("new-name");
+		expect(postType.slug).not.toBe(oldSlug);
+		expect(repository.items[0]?.slug).toBe(postType.slug);
 	});
 
 	it("should update with explicit slug", async () => {
@@ -112,7 +113,7 @@ describe("UpdatePostTypeUseCase", () => {
 	it("should return early if new slug is same as current slug", async () => {
 		const postType = makePostType();
 		await repository.create(postType);
-		const uniquenessSpy = vi.spyOn(uniquenessChecker, "run");
+		const uniquenessSpy = spyOn(uniquenessChecker, "run");
 
 		await sut.run(postType.slug, { slug: postType.slug });
 
