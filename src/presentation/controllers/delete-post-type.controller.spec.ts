@@ -55,42 +55,18 @@ describe("DeletePostTypeController", () => {
         const options = await authenticate();
         const created = await createPostType(options);
 
-        const { status, data } = await postType(created.slug).delete(
-            {},
-            options,
-        );
+        const { status } = await postType(created.slug).delete({}, options);
 
-        expect(status).toBe(200);
-        expect(data?.slug).toBe(created.slug);
+        expect(status).toBe(204);
     });
 
     it("should delete a post type by id", async () => {
         const options = await authenticate();
         const created = await createPostType(options);
 
-        const { status, data } = await postType(created.id).delete(
-            {},
-            options,
-        );
+        const { status } = await postType(created.id).delete({}, options);
 
-        expect(status).toBe(200);
-        expect(data?.id).toBe(created.id);
-    });
-
-    it("should return the deleted post type payload", async () => {
-        const options = await authenticate();
-        const created = await createPostType(options);
-
-        const { data } = await postType(created.slug).delete({}, options);
-
-        expect(data).toMatchObject({
-            name: created.name,
-            slug: created.slug,
-            schema: created.schema,
-            isHighlighted: false,
-        });
-        expect(data?.id).toBeDefined();
-        expect(data?.createdAt).toBeDefined();
+        expect(status).toBe(204);
     });
 
     it("should not find a post type after deletion", async () => {
@@ -110,7 +86,7 @@ describe("DeletePostTypeController", () => {
 
         const { status } = await postType(created.slug).delete({});
 
-        expect(status).not.toBe(200);
+        expect(status).not.toBe(204);
     });
 
     it("should fail when deleting a non-existent post type", async () => {
@@ -121,6 +97,6 @@ describe("DeletePostTypeController", () => {
             options,
         );
 
-        expect(status).not.toBe(200);
+        expect(status).not.toBe(204);
     });
 });

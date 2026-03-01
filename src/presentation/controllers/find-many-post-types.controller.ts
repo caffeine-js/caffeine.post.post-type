@@ -30,7 +30,9 @@ export function FindManyPostTypesController({
                     summary: "List Post Types",
                     description: "Retrieves a paginated list of post types.",
                 },
-                response: { 200: FindManyPostTypesResponseDTO },
+                response: {
+                    200: FindManyPostTypesResponseDTO,
+                },
             },
         );
 }

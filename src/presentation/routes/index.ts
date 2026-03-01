@@ -11,6 +11,7 @@ import {
 } from "../controllers";
 import type { IControllersWithAuth } from "../controllers/types/controllers-with-auth.interface";
 import type { IControllersWithoutAuth } from "../controllers/types/controllers-without-auth.interface";
+import PostTypesTag from "../tags";
 
 type PostTypeRoutesArgs = IControllersWithAuth;
 
@@ -20,7 +21,7 @@ export function PostTypeRoutes(data: PostTypeRoutesArgs) {
 
     return new Elysia({
         prefix: "/post-types",
-        detail: { tags: ["Post Types"] },
+        detail: { tags: [PostTypesTag.name] },
         name: PostType[EntitySource],
     })
         .use(CreatePostTypeController(data))

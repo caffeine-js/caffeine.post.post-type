@@ -1,5 +1,4 @@
 import { PostType } from "@/domain";
-import { UnpackedPostTypeDTO } from "@/domain/dtos";
 import { makeDeletePostTypeUseCase } from "@/infra/factories/application/use-cases";
 import { CaffeineAuth } from "@caffeine/auth/plugins/guards";
 import { EntitySource } from "@caffeine/entity/symbols";
@@ -7,6 +6,7 @@ import { IdOrSlugDTO } from "@caffeine/presentation/dtos";
 import { Elysia } from "elysia";
 import { PostTypeRepositoryPlugin } from "../plugins";
 import type { IControllersWithAuth } from "./types/controllers-with-auth.interface";
+import { t } from "@caffeine/models";
 
 export function DeletePostTypeController({
     cacheProvider,
@@ -29,11 +29,11 @@ export function DeletePostTypeController({
         }))
         .delete(
             "/:id-or-slug",
-            async ({ params, deletePostType, status }) =>
-                status(
-                    200,
-                    (await deletePostType.run(params["id-or-slug"])) as never,
-                ),
+            async ({ params, deletePostType, set }) => {
+                await deletePostType.run(params["id-or-slug"]);
+                set.status = 204;
+                return;
+            },
             {
                 params: IdOrSlugDTO,
                 detail: {
@@ -41,7 +41,7 @@ export function DeletePostTypeController({
                     description:
                         "Deletes a post type identified by its slug or id.",
                 },
-                response: { 200: UnpackedPostTypeDTO },
+                response: { 204: t.Undefined() },
             },
         );
 }
